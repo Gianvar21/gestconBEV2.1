@@ -1,83 +1,78 @@
 const db = require("../database/db.js");
-const JWT = require("jsonwebtoken")
-const md5 = require("md5");
-
-
-
+const JWT = require("jsonwebtoken");
+const CryptoJS = require("crypto-js");
 
 function getValidacion(Accion, user, password) {
-    // create mysql connection
-    const connection = db.getConnection();
-    return new Promise((resolve, reject) => {
-        connection.query("CALL sp_sgm_usuarios (?, ?, ?, ?, ?, ?, ?) ", [Accion, user, "", password, "", "", ""],
-            function (error, results, fields) {
-
-                if (error) {
-                    reject(error);
-                } else {
-                    resolve(results);
-                }
-            });
-    });
+  const connection = db.getConnection();
+  return new Promise((resolve, reject) => {
+    connection.query(
+      "CALL sp_sgm_usuarios (?, ?, ?, ?, ?, ?, ?) ",
+      [Accion, user, "", password, "", "", ""],
+      function (error, results, fields) {
+        if (error) {
+          reject(error);
+        } else {
+          resolve(results);
+        }
+      }
+    );
+  });
 }
-// LOGIN
+
+const generateAccessToken = (Sgm_cUsuario) => {
+  return JWT.sign({ Sgm_cUsuario }, "nfb32iur32ibfqfvi3vf932bg932g932", {
+    expiresIn: 360000,
+  });
+};
+
+const generateAccesoSubidaEncriptado = (Sgm_cUsuario) => {
+  return CryptoJS.AES.encrypt('A' + Sgm_cUsuario, 'nfb32iur32ibfqfvi3vf932bg932g932').toString();
+};
+
 const token = async (request, response) => {
     try {
-        const { Sgm_cUsuario, Sgm_cContrasena } = request.body;
-        // debe consultar a la bd el usuario y contrasseña
-        // si se encontro debe generar el jwt sino return
-        const _result = await getValidacion("VALIDARUSUARIO", Sgm_cUsuario, Sgm_cContrasena);
+      const { Sgm_cUsuario, Sgm_cContrasena } = request.body;
 
-        //console.log(_result);
+      const _result = await getValidacion("VALIDARUSUARIO", Sgm_cUsuario, Sgm_cContrasena);
 
+      let token = "";
+      let accUp = "";
 
-        let token = "";
-        if (_result && _result[0].length > 0) {
-            if (_result[0][0].Sgm_cUsuario) {
-                token = JWT.sign({ Sgm_cUsuario }, "nfb32iur32ibfqfvi3vf932bg932g932", { expiresIn: 360000 });
-            }
-            else {
-                return response.status(422).json({
-                    errors: [
-                        {
-                            msg: "This user already not exists",
-                        }
-                    ]
-                })
-            }
-
-
+      if (_result && _result[0].length > 0) {
+        if (_result[0][0].Sgm_cUsuario) {
+          token = generateAccessToken(Sgm_cUsuario);
+          accUp = generateAccesoSubidaEncriptado(Sgm_cUsuario);
         } else {
-            // Mensaje de error
-            return response.status(422).json({
-                errors: [
-                    {
-                        msg: "This user already not exists",
-                    }
-                ]
-            })
+          return response.status(422).json({
+            errors: [
+              {
+                msg: "This user already not exists",
+              },
+            ],
+          });
         }
-
-
-
-
-        // console.log(token);
-
-        response.json({
-            token
+      } else {
+        return response.status(422).json({
+          errors: [
+            {
+              msg: "This user already not exists",
+            },
+          ],
         });
+      }
 
+      response.json({
+        token,
+        accUp, // Deberías enviar accUp en la respuesta
+      });
     } catch (error) {
-        response.status(500);
-        response.send(error.message);
+      response.status(500);
+      response.send(error.message);
     }
 };
 
-
-
-
-// export functions
-module.exports = {
-    token
-};
-
+  
+  module.exports = {
+    token,
+  };
+  

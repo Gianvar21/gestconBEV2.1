@@ -337,7 +337,9 @@ const getUsuario = async (request, response) => {
     ouUsuario.Sgm_cAccesodeSubida = params.Sgm_cAccesodeSubida;
 
     
-   // console.log(ouUsuario.Sgm_cAccesodeSubida);
+    
+   //console.log(ouUsuario.Accion);
+   //console.log("--------------");
 
     connection.query("CALL sp_sgm_usuarios (?,?,?,?,?,?,?) ", [
       ouUsuario.Accion, ouUsuario.Sgm_cUsuario, ouUsuario.Sgm_cNombre,
